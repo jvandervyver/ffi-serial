@@ -79,7 +79,7 @@ module FFISerial #:nodoc:
       def self.GetCommState(ruby_io)
         dcb = DCB.new
         dcb[:DCBlength] = dcb.size
-        if (0 != c_GetCommState(LIBC._get_osfhandle(ruby_io), dcb))
+        if (0 == c_GetCommState(LIBC._get_osfhandle(ruby_io), dcb))
           raise ERRNO[FFI.errno].new
         end
         dcb
@@ -87,21 +87,21 @@ module FFISerial #:nodoc:
 
       def self.SetCommState(ruby_io, dcb)
         dcb[:DCBlength] = dcb.size
-        if (0 != c_SetCommState(LIBC._get_osfhandle(ruby_io), dcb))
+        if (0 == c_SetCommState(LIBC._get_osfhandle(ruby_io), dcb))
           raise ERRNO[FFI.errno].new
         end
       end
 
       def self.GetCommTimeouts(ruby_io)
         commtimeouts = COMMTIMEOUTS.new
-        if (0 != c_GetCommTimeouts(LIBC._get_osfhandle(fd), commtimeouts))
+        if (0 == c_GetCommTimeouts(LIBC._get_osfhandle(fd), commtimeouts))
           raise ERRNO[FFI.errno].new
         end
         commtimeouts
       end
 
       def self.SetCommTimeouts(ruby_io, commtimeouts)
-        if (0 != c_SetCommTimeouts(LIBC._get_osfhandle(ruby_io), commtimeouts))
+        if (0 == c_SetCommTimeouts(LIBC._get_osfhandle(ruby_io), commtimeouts))
           raise ERRNO[FFI.errno].new
         end
       end
