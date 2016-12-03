@@ -28,21 +28,7 @@ module Serial #:nodoc:
                 :c_oflag, :ulong,
                 :c_cflag, :ulong,
                 :c_lflag, :ulong,
-                :cc_c, [:uchar, 20],
-                :c_ispeed, :ulong,
-                :c_ospeed, :ulong
-
-        def baud #:nodoc:
-          CONSTANTS['BAUD_'].fetch(self[:c_ispeed])
-        end
-
-        def baud=(val) #:nodoc:
-          mask = CONSTANTS['BAUD'].fetch(val, nil)
-          if mask.nil?
-            raise ArgumentError.new "Invalid baud, supported values #{CONSTANTS['BAUD'].keys.inspect}"
-          end
-          self[:c_cflag] = self[:c_cflag] | mask; self[:c_ispeed] = mask; self[:c_ospeed] = mask; val
-        end
+                :cc_c, [:uchar, 64]
       end
     end
   end

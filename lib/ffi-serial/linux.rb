@@ -31,20 +31,7 @@ module Serial #:nodoc:
                 :c_cflag, :uint,
                 :c_lflag, :uint,
                 :c_line, :uchar,
-                :cc_c, [:uchar, 19],
-                :ignored, [:uint8, 48] # ignored padding bytes
-
-        def baud #:nodoc:
-          CONSTANTS['BAUD_'].fetch(self[:c_cflag] & CONSTANTS['BAUD_BITMASK'])
-        end
-
-        def baud=(val) #:nodoc:
-          mask = CONSTANTS['BAUD'].fetch(val, nil)
-          if mask.nil?
-            raise ArgumentError.new "Invalid baud, supported values #{CONSTANTS['BAUD'].keys.inspect}"
-          end
-          self[:c_cflag] = self[:c_cflag] | mask; val
-        end
+                :cc_c, [:uchar, 64]
       end
     end
   end

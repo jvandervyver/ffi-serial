@@ -29,7 +29,12 @@ module Serial #:nodoc:
       # Parse configuration first
       termios = LIBC::Termios.new
 
-      termios.baud = baud
+      baud = LIBC::CONSTANTS['BAUD'].fetch(baud, nil)
+      if baud.nil?
+        raise ArgumentError.new "Invalid baud, supported values #{CONSTANTS['BAUD'].keys.inspect}"
+      end
+      LIBC.cfsetispeed(termios, baud)
+      LIBC.cfsetospeed(termios, baud)
       termios.data_bits = data_bits
       termios.stop_bits = stop_bits
       termios.parity = parity
@@ -43,8 +48,8 @@ module Serial #:nodoc:
         termios[:c_iflag] = (termios[:c_iflag] | LIBC::CONSTANTS['IXON'] | LIBC::CONSTANTS['IXOFF'] | LIBC::CONSTANTS['IXANY'])
         termios[:c_cflag] = (termios[:c_cflag] | LIBC::CONSTANTS['CLOCAL'] | LIBC::CONSTANTS['CREAD'] | LIBC::CONSTANTS['HUPCL'])
 
-        # Blocking read
-        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 1 
+        # non-blocking read
+        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 0
         termios[:cc_c][LIBC::CONSTANTS['VTIME']] = 0
 
         LIBC.tcsetattr(io,  termios)
@@ -58,7 +63,7 @@ module Serial #:nodoc:
     end
 
     def baud #:nodoc:
-      LIBC.tcgetattr(self).baud
+      LIBC::CONSTANTS['BAUD_'].fetch(LIBC.cfgetispeed(LIBC.tcgetattr(self)))
     end
 
     def data_bits #:nodoc:
@@ -93,16 +98,23 @@ module Serial #:nodoc:
 
       def self.tcgetattr(ruby_io) #:nodoc:
         termios = Termios.new
-        if (0 != c_tcgetattr(ruby_io.fileno, termios))
-          raise ERRNO[FFI.errno].new
-        end
-        termios
+        return termios if (0 == c_tcgetattr(ruby_io.fileno, termios))
+        raise ERRNO[FFI.errno].new
       end
 
       def self.tcsetattr(ruby_io, termios) #:nodoc:
-        if (0 != c_tcsetattr(ruby_io.fileno, CONSTANTS['TCSANOW'], termios))
-          raise ERRNO[FFI.errno].new
-        end
+        return true if (0 == c_tcsetattr(ruby_io.fileno, CONSTANTS['TCSANOW'], termios))
+        raise ERRNO[FFI.errno].new
+      end
+
+      def self.cfsetispeed(termios, speed)
+        return true if (0 == c_cfsetispeed(termios, speed))
+        raise ERRNO[FFI.errno].new
+      end
+
+      def self.cfsetospeed(termios, speed)
+        return true if (0 == c_cfsetospeed(termios, speed))
+        raise ERRNO[FFI.errno].new
       end
 
       class Termios #:nodoc:
@@ -152,7 +164,6 @@ module Serial #:nodoc:
         constants['DATA_BITS_'] = constants['DATA_BITS'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
         constants['STOP_BITS_'] = constants['STOP_BITS'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
         constants['PARITY_'] = constants['PARITY'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
-        constants['BAUD_BITMASK'] = constants['BAUD'].values.max
         constants['DATA_BITS_BITMASK'] = constants['DATA_BITS'].values.max
         constants['STOP_BITS_BITMASK'] = constants['STOP_BITS'].values.max
         constants['PARITY_BITMASK'] = constants['PARITY'].values.max
@@ -164,7 +175,11 @@ module Serial #:nodoc:
       attach_function :c_tcgetattr, :tcgetattr, [:int, :buffer_in], :int #:nodoc:
       attach_function :c_tcsetattr, :tcsetattr, [:int, :int, :buffer_out], :int #:nodoc:
 
-      private_class_method :os_specific_constants, :c_tcgetattr, :c_tcsetattr #:nodoc:
+      attach_function :c_cfsetispeed, :cfsetispeed, [:buffer_in, :uint32], :int #:nodoc:
+      attach_function :c_cfsetospeed, :cfsetospeed, [:buffer_in, :uint32], :int #:nodoc:
+      attach_function :cfgetispeed, [:buffer_in], :uint32 #:nodoc:
+
+      private_class_method :os_specific_constants, :c_tcgetattr, :c_tcsetattr, :c_cfsetispeed, :c_cfsetospeed #:nodoc:
       private_constant :ERRNO #:nodoc:
     end
 
