@@ -61,37 +61,13 @@ module Serial #:nodoc:
     # It seems like VMIN and VTIME is broken :(
     # So this seems to be the only way to implement read the way it should be
     def read(length = nil, buffer = nil) #:nodoc:
-      if length.nil?
-        IO.select([self]) # Block
-
-        if buffer.nil?
-          return super
-        else
-          return super(nil, buffer)
-        end
-      end
-
-      read_count = 0
-      data_read = []
-      while(length > read_count)
-        IO.select([self]) # Block
-        data_read << (partial_read = super(length))
-        read_count += partial_read.length
-      end
-
-      data_read = data_read.join
-      return data_read if buffer.nil?
-      buffer.gsub!(buffer, data_read) # :sigh: not sure how to do this better
-      buffer
+      IO.select([self]) # Block
+      super(length, buffer)
     end
 
     def readpartial(length, buffer = nil) #:nodoc:
       IO.select([self]) # Block
-      if buffer.nil?
-        super(length)
-      else
-        super(length, buffer)
-      end
+      super(length, buffer)
     end
 
     def baud #:nodoc:
