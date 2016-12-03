@@ -207,8 +207,10 @@ module FFISerial #:nodoc:
         constants['DATA_BITS_'] = constants['DATA_BITS'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
         constants['STOP_BITS_'] = constants['STOP_BITS'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
         constants['PARITY_'] = constants['PARITY'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
+        constants['FLAGS_'] = {}
         constants['FLAGS_']['fDtrControl'] = constants['FLAGS']['fDtrControl'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
         constants['FLAGS_']['fRtsControl'] = constants['FLAGS']['fRtsControl'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
+        constants['FLAGS_'].freeze
 
         constants.freeze
       end
