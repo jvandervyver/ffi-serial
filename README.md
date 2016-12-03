@@ -39,6 +39,12 @@ No modification is made to IO nor does this simply emulate IO.
     port.is_a?(IO) #=> true
     port.is_a?(File) #=> true
 
+    port.read_nonblock(512) #=> ... <supported in Windows>
+    port.read #=> ...
+    port.readpartial(512) #=> ...
+    port.write "\n" #=> 1
+    # etc.
+
     port.close #=> nil
 
     # Explicit configuration (and works on Windows)

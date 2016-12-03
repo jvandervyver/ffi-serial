@@ -1,4 +1,4 @@
-Sat, 03 Dec 2016 23:03:50 +0200
+Sat, 03 Dec 2016 23:10:13 +0200
 ./ffi-serial.gemspec	Sat, 03 Dec 2016 16:58:45 +0200
 ./lib/ffi-serial/bsd.rb	Sat, 03 Dec 2016 22:04:36 +0200
 ./lib/ffi-serial/darwin.rb	Sat, 03 Dec 2016 22:04:30 +0200
@@ -7,4 +7,4 @@ Sat, 03 Dec 2016 23:03:50 +0200
 ./lib/ffi-serial/windows.rb	Sat, 03 Dec 2016 22:27:15 +0200
 ./lib/ffi-serial.rb	Sat, 03 Dec 2016 23:00:45 +0200
 ./LICENSE	Sat, 03 Dec 2016 16:58:28 +0200
-./README.md	Sat, 03 Dec 2016 22:55:51 +0200
+./README.md	Sat, 03 Dec 2016 23:09:43 +0200
