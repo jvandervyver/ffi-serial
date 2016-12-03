@@ -29,6 +29,7 @@ module FFISerial #:nodoc:
         dcb[:XoffChar] = 19
 
         Kernel32.SetCommState(io, config)
+        Kernel32.ClearCommError(io)
       rescue Exception
         begin; io.close; rescue Exception; end
         raise
@@ -112,6 +113,12 @@ module FFISerial #:nodoc:
 
       def self.SetCommTimeouts(ruby_io, commtimeouts)
         if (0 == c_SetCommTimeouts(LIBC._get_osfhandle(ruby_io), commtimeouts))
+          raise ERRNO[FFI.errno].new
+        end
+      end
+
+      def self.ClearCommError(ruby_io)
+        if (0 == c_ClearCommError(LIBC._get_osfhandle(ruby_io), 0, 0))
           raise ERRNO[FFI.errno].new
         end
       end
@@ -267,7 +274,7 @@ module FFISerial #:nodoc:
       attach_function :c_SetCommState, :SetCommState, [:long, :buffer_in], :int #:nodoc:
       attach_function :c_GetCommTimeouts, :GetCommTimeouts, [:long, :buffer_out], :int #:nodoc:
       attach_function :c_SetCommTimeouts, :SetCommTimeouts, [:long, :buffer_in], :int #:nodoc:
-      attach_function :c_ClearCommError, :ClearCommError [:long, :int, :int], :int #:nodoc:
+      attach_function :c_ClearCommError, :ClearCommError, [:long, :int, :int], :int #:nodoc:
       private_class_method :c_GetCommState, :c_SetCommState, :c_GetCommTimeouts, :c_SetCommTimeouts, :c_ClearCommError #:nodoc:
       private_constant :LIBC, :ERRNO #:nodoc:
     end
