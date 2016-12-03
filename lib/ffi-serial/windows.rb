@@ -147,7 +147,7 @@ module FFISerial #:nodoc:
           self[:ByteSize] = parsed; val
         end
 
-        def data_bits(val)
+        def data_bits
           CONSTANTS['DATA_BITS_'].fetch(self[:ByteSize])
         end
 
@@ -159,7 +159,7 @@ module FFISerial #:nodoc:
           self[:StopBits] = parsed; val
         end
 
-        def stop_bits(val)
+        def stop_bits
           CONSTANTS['STOP_BITS_'].fetch(self[:StopBits])
         end
 
