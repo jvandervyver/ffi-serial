@@ -1,9 +1,10 @@
-Sat, 03 Dec 2016 23:10:13 +0200
-./ffi-serial.gemspec	Sat, 03 Dec 2016 16:58:45 +0200
-./lib/ffi-serial/bsd.rb	Sat, 03 Dec 2016 22:04:36 +0200
-./lib/ffi-serial/darwin.rb	Sat, 03 Dec 2016 22:04:30 +0200
-./lib/ffi-serial/linux.rb	Sat, 03 Dec 2016 22:04:22 +0200
-./lib/ffi-serial/posix.rb	Sat, 03 Dec 2016 22:59:40 +0200
+Sun, 04 Dec 2016 00:36:22 +0200
+./ffi-serial-1.0.1.gem	Sat, 03 Dec 2016 23:59:18 +0200
+./ffi-serial.gemspec	Sun, 04 Dec 2016 00:36:15 +0200
+./lib/ffi-serial/bsd.rb	Sat, 03 Dec 2016 23:43:17 +0200
+./lib/ffi-serial/darwin.rb	Sat, 03 Dec 2016 23:42:50 +0200
+./lib/ffi-serial/linux.rb	Sat, 03 Dec 2016 23:42:24 +0200
+./lib/ffi-serial/posix.rb	Sun, 04 Dec 2016 00:35:39 +0200
 ./lib/ffi-serial/windows.rb	Sat, 03 Dec 2016 22:27:15 +0200
 ./lib/ffi-serial.rb	Sat, 03 Dec 2016 23:00:45 +0200
 ./LICENSE	Sat, 03 Dec 2016 16:58:28 +0200

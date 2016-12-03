@@ -78,10 +78,10 @@
 <p>Gem::Specification.new do |s|</p>
 
 <pre>s.name = &#39;ffi-serial&#39;
-s.version = &#39;1.0.0&#39;
+s.version = &#39;1.0.2&#39;
 s.platform = Gem::Platform::RUBY
 s.has_rdoc = true
-s.extra_rdoc_files = [&#39;LICENSE&#39;, &#39;README.rdoc&#39;] + Dir[&#39;doc  .rdoc&#39;]
+s.extra_rdoc_files = [&#39;LICENSE&#39;] + Dir[&#39;doc  .rdoc&#39;]
 s.rdoc_options += [&#39;--quiet&#39;, &#39;--line-numbers&#39;, &#39;--inline-source&#39;, &#39;--title&#39;, &#39;FFI Serial&#39;, &#39;--main&#39;, &#39;README.rdoc&#39;]
 s.summary = &#39;FFI Serial&#39;
 s.description = &#39;Yet another Ruby Serial Port implementation using FFI. Returns a Ruby IO object configured as a serial port to leverage the extensive Ruby IO standard library functionality&#39;
@@ -89,7 +89,7 @@ s.author = &#39;Johan van der Vyver&#39;
 s.email = &#39;code@johan.vdvyver.com&#39;
 s.license = &#39;MIT&#39;
 s.required_ruby_version = &#39;&gt;= 1.9.3&#39;
-s.files = [&#39;LICENSE&#39;, &#39;README.rdoc&#39;, &#39;README.md&#39; ] + Dir[&#39;lib/   *.rb&#39;] + Dir[&#39;doc   /*.{rdoc,txt}&#39;]
+s.files = [&#39;LICENSE&#39;, &#39;README.md&#39; ] + Dir[&#39;lib/   *.rb&#39;] + Dir[&#39;doc   /*.{rdoc,txt}&#39;]
 s.add_runtime_dependency &#39;ffi&#39;, &#39;~&gt; 1.9&#39;, &#39;&gt;= 1.9.3&#39;</pre>
 
 <p>end</p>
