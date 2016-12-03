@@ -15,8 +15,10 @@ By making use of FFI a lot of native compilation concerns go away.
 Serial ports are simply files, in both Posix and Windows, that have special API calls to configure the serial port settings.
 
 Ruby IO provides a rich API and it is part of standard library.
-By open a serial port as a IO object, this gem benefits from everything Ruby IO provides.
-Therefore the code in this gem is to configure the IO object rather than emulating an IO object.
+Using IO, this gem benefits from everything Ruby IO provides.
+No modification is made to IO nor does this simply emulate IO.
+
+99% of the code in this gem is to call the native operating system functions to configure the IO object serial port settings
 
 ## Installation
     gem install ffi-serial
