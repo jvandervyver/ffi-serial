@@ -28,7 +28,7 @@ module FFISerial #:nodoc:
         dcb[:XonChar] = 17
         dcb[:XoffChar] = 19
 
-        Kernel32.SetCommState(io, config)
+        Kernel32.SetCommState(io, dcb)
         Kernel32.ClearCommError(io)
       rescue Exception
         begin; io.close; rescue Exception; end
