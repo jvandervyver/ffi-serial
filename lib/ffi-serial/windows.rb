@@ -1,4 +1,4 @@
-module FFISerial #:nodoc:
+module Serial #:nodoc:
   module Windows #:nodoc:
     def self.new(com_port, baud, data_bits, stop_bits, parity) #:nodoc:
       # Either specify as 'COM1' or a number. eg 1 for 'COM1'
@@ -30,6 +30,7 @@ module FFISerial #:nodoc:
 
         Kernel32.SetCommState(io, dcb)
         Kernel32.ClearCommError(io)
+        Kernel32.set_io_block(io)
       rescue Exception
         begin; io.close; rescue Exception; end
         raise
@@ -37,38 +38,67 @@ module FFISerial #:nodoc:
       io
     end
 
-    ##
-    # Query the current serial port baud rate
     def baud #:nodoc:
       Kernel32.GetCommState(self).baud
     end
 
-    ##
-    # Query the current serial port data bits
     def data_bits #:nodoc:
       Kernel32.GetCommState(self).data_bits
     end
 
-    ##
-    # Query the current serial port stop bits
     def stop_bits #:nodoc:
       Kernel32.GetCommState(self).stop_bits
     end
 
-    ##
-    # Query the current serial port parity configuration
     def parity #:nodoc:
       Kernel32.GetCommState(self).parity
     end
 
-    def read(*a, &b) #:nodoc:
-      Kernel32.set_io_block(self)
-      super.read(*a, &b)
+    def read_nonblock(maxlen, outbuf = nil, options = nil) #:nodoc:
+      Kernel32.set_io_nonblock(self)
+      result = begin
+        outbuf.nil? ? read(maxlen) : read(maxlen, outbuf)
+      ensure
+        Kernel32.set_io_block(self)
+      end
+
+      if result.nil? || (0 == result.length)
+        if ((!options.nil?) && (false == options[:exception]))
+          return :wait_readable
+        end
+        raise Errno::EWOULDBLOCK.new
+      end
+      result
     end
 
-    def read_nonblock(*a, &b) #:nodoc:
+    def readpartial(maxlen, outbuf = nil) #:nodoc:
+      ch = self.read(1)
+      if (ch.nil? || (0 == ch.length))
+        return ch
+      end
+      self.ungetc(ch)
       Kernel32.set_io_nonblock(self)
-      super.read(*a, &b)
+      outbuf.nil? ? read(maxlen) : read(maxlen, outbuf)
+    ensure
+      Kernel32.set_io_block(self)
+    end
+
+    def readbyte #:nodoc:
+      Kernel32.set_io_nonblock(self); super
+    ensure
+      Kernel32.set_io_block(self)
+    end
+
+    def getc #:nodoc:
+      Kernel32.set_io_nonblock(self); super
+    ensure
+      Kernel32.set_io_block(self)
+    end
+
+    def readchar #:nodoc:
+      Kernel32.set_io_nonblock(self); super
+    ensure
+      Kernel32.set_io_block(self)
     end
 
     def to_s #:nodoc:
@@ -79,68 +109,63 @@ module FFISerial #:nodoc:
       self.to_s
     end
 
-    module Kernel32
+    ##
+    # FFI integration with Kernel32.dll to provide access to OS specific serial port APIs
+    module Kernel32 #:nodoc:
       require 'ffi'
 
       extend FFI::Library #:nodoc:
       ffi_lib 'kernel32'
       ffi_convention :stdcall
 
-      def self.GetCommState(ruby_io)
+      def self.GetCommState(ruby_io) #:nodoc:
         dcb = DCB.new
         dcb[:DCBlength] = dcb.size
-        if (0 == c_GetCommState(LIBC._get_osfhandle(ruby_io), dcb))
-          raise ERRNO[FFI.errno].new
-        end
-        dcb
+        return dcb unless (0 == c_GetCommState(LIBC._get_osfhandle(ruby_io), dcb))
+        raise ERRNO[FFI.errno].new
       end
 
-      def self.SetCommState(ruby_io, dcb)
+      def self.SetCommState(ruby_io, dcb) #:nodoc:
         dcb[:DCBlength] = dcb.size
         dcb[:Flags] = dcb[:Flags] | 1 # fBinary must be true
-        if (0 == c_SetCommState(LIBC._get_osfhandle(ruby_io), dcb))
-          raise ERRNO[FFI.errno].new
-        end
+        return true unless (0 == c_SetCommState(LIBC._get_osfhandle(ruby_io), dcb))
+        raise ERRNO[FFI.errno].new
       end
 
-      def self.GetCommTimeouts(ruby_io)
+      def self.GetCommTimeouts(ruby_io) #:nodoc:
         commtimeouts = COMMTIMEOUTS.new
-        if (0 == c_GetCommTimeouts(LIBC._get_osfhandle(fd), commtimeouts))
-          raise ERRNO[FFI.errno].new
-        end
-        commtimeouts
+        return commtimeouts unless (0 == c_GetCommTimeouts(LIBC._get_osfhandle(fd), commtimeouts))
+        raise ERRNO[FFI.errno].new
       end
 
-      def self.SetCommTimeouts(ruby_io, commtimeouts)
-        if (0 == c_SetCommTimeouts(LIBC._get_osfhandle(ruby_io), commtimeouts))
-          raise ERRNO[FFI.errno].new
-        end
+      def self.SetCommTimeouts(ruby_io, commtimeouts) #:nodoc:
+        return true unless (0 == c_SetCommTimeouts(LIBC._get_osfhandle(ruby_io), commtimeouts))
+        raise ERRNO[FFI.errno].new
       end
 
-      def self.ClearCommError(ruby_io)
-        if (0 == c_ClearCommError(LIBC._get_osfhandle(ruby_io), 0, 0))
-          raise ERRNO[FFI.errno].new
-        end
+      def self.ClearCommError(ruby_io) #:nodoc:
+        return true unless (0 == c_ClearCommError(LIBC._get_osfhandle(ruby_io), 0, 0))
+        raise ERRNO[FFI.errno].new
       end
 
-      def self.set_io_block(ruby_io)
-        SetCommTimeouts(ruby_io, (@@read_block_io ||= begin
-          timeouts = COMMTIMEOUTS.new # Setting 0 here should work technically, sticking to MAXDWORD - 1
-          timeouts[:ReadIntervalTimeout] = 4294967294
-          timeouts[:ReadTotalTimeoutMultiplier] = 4294967294
-          timeouts[:ReadTotalTimeoutConstant] = 4294967294
-          timeouts[:WriteTotalTimeoutMultiplier] = 4294967294
-          timeouts[:WriteTotalTimeoutConstant] = 4294967294
+      def self.set_io_block(ruby_io) #:nodoc:
+        self.SetCommTimeouts(ruby_io, (@@read_block_io ||= begin
+          timeouts = COMMTIMEOUTS.new
+          timeouts[:ReadIntervalTimeout] = CONSTANTS['MAXDWORD']
+          timeouts[:ReadTotalTimeoutMultiplier] = CONSTANTS['MAXDWORD']
+          timeouts[:ReadTotalTimeoutConstant] = CONSTANTS['MAXDWORD'] - 1
+          timeouts[:WriteTotalTimeoutMultiplier] = 0
+          timeouts[:WriteTotalTimeoutConstant] = CONSTANTS['MAXDWORD'] - 1
           timeouts
         end))
       end
 
-      def self.set_io_nonblock(ruby_io)
-        SetCommTimeouts(ruby_io, (@@read_block_io ||= begin
+      def self.set_io_nonblock(ruby_io) #:nodoc:
+        self.SetCommTimeouts(ruby_io, (@@read_nonblock_io ||= begin
           timeouts = COMMTIMEOUTS.new
-          timeouts[:ReadIntervalTimeout] = 1 # Techinically we should set MAXDWORD here but I trust 1ms more
-          timeouts[:ReadTotalTimeoutMultiplier] = 1
-          timeouts[:ReadTotalTimeoutConstant] = 1
+          timeouts[:ReadIntervalTimeout] = CONSTANTS['MAXDWORD']
+          timeouts[:ReadTotalTimeoutMultiplier] = 0
+          timeouts[:ReadTotalTimeoutConstant] = 0
           timeouts[:WriteTotalTimeoutMultiplier] = 1
           timeouts[:WriteTotalTimeoutConstant] = 1
           timeouts
@@ -164,7 +189,7 @@ module FFISerial #:nodoc:
                :EvtChar, :int8,
                :wReserved1, :uint16
 
-        def baud=(val)
+        def baud=(val) #:nodoc:
           new_val = begin
             Integer(val)
           rescue StandardError
@@ -176,11 +201,11 @@ module FFISerial #:nodoc:
           self[:BaudRate] = new_val; val
         end
 
-        def baud
+        def baud #:nodoc:
           self[:BaudRate]
         end
 
-        def data_bits=(val)
+        def data_bits=(val) #:nodoc:
           parsed = CONSTANTS['DATA_BITS'].fetch(val, nil)
           if parsed.nil?
             raise ArgumentError.new "Invalid data bits, supported values #{CONSTANTS['DATA_BITS'].keys.inspect}"
@@ -188,11 +213,11 @@ module FFISerial #:nodoc:
           self[:ByteSize] = parsed; val
         end
 
-        def data_bits
+        def data_bits #:nodoc:
           CONSTANTS['DATA_BITS_'].fetch(self[:ByteSize])
         end
 
-        def stop_bits=(val)
+        def stop_bits=(val) #:nodoc:
           parsed = CONSTANTS['STOP_BITS'].fetch(val, nil)
           if parsed.nil?
             raise ArgumentError.new "Invalid data bits, supported values #{CONSTANTS['STOP_BITS'].keys.inspect}"
@@ -200,11 +225,11 @@ module FFISerial #:nodoc:
           self[:StopBits] = parsed; val
         end
 
-        def stop_bits
+        def stop_bits #:nodoc:
           CONSTANTS['STOP_BITS_'].fetch(self[:StopBits])
         end
 
-        def parity=(val)
+        def parity=(val) #:nodoc:
           parsed = CONSTANTS['PARITY'].fetch(val, nil)
           if parsed.nil?
             raise ArgumentError.new "Invalid parity, supported values #{CONSTANTS['PARITY'].keys.inspect}"
@@ -217,7 +242,7 @@ module FFISerial #:nodoc:
           self[:Parity] = parsed; val
         end
 
-        def parity
+        def parity #:nodoc:
           CONSTANTS['PARITY_'].fetch(self[:Parity])
         end
       end
@@ -230,8 +255,9 @@ module FFISerial #:nodoc:
                :WriteTotalTimeoutConstant, :uint32
       end
 
-      CONSTANTS ||= begin
+      CONSTANTS ||= begin #:nodoc:
         constants = {
+          'MAXDWORD' => 4294967295,
           'DATA_BITS' => { 5 => 5, 6 => 6, 7 => 7, 8 => 8 }.freeze,    
           'STOP_BITS' => { 1 => 0, 1.5 => 1, 2 => 2 }.freeze,
           'PARITY' => { none: 0, odd: 1, even: 2, mark: 3, space: 4 }.freeze,
@@ -242,7 +268,7 @@ module FFISerial #:nodoc:
             'fInX' => 512, 'fErrorChar' => 1024, 'fNull' => 2048,
             'fRtsControl' => { disable: 0, enable: 4096, handshake: 8192,  toggle: 12288 }.freeze,
             'fAbortOnError' => 16384
-          }.freeze
+          }.freeze,
         }
 
         constants['DATA_BITS_'] = constants['DATA_BITS'].each_with_object({}) { |(k,v),r| r[v] = k }.freeze
@@ -256,12 +282,14 @@ module FFISerial #:nodoc:
         constants.freeze
       end
 
-      module LIBC
+      module LIBC #:nodoc:
         extend FFI::Library #:nodoc:
         ffi_lib FFI::Library::LIBC
 
-        def self._get_osfhandle(ruby_io)
-          c__get_osfhandle(ruby_io.fileno)
+        def self._get_osfhandle(ruby_io) #:nodoc:
+          handle = c__get_osfhandle(ruby_io.fileno)
+          return handle unless (-1 == handle)
+          raise ERRNO[FFI.errno].new
         end
 
         attach_function :c__get_osfhandle, :_get_osfhandle, [:int], :long #:nodoc:
@@ -270,15 +298,15 @@ module FFISerial #:nodoc:
 
       ERRNO ||= Errno.constants.each_with_object({}) { |e, r| e = Errno.const_get(e); r[e::Errno] = e }.freeze #:nodoc:
 
-      attach_function :c_GetCommState, :GetCommState, [:long, :buffer_out], :int #:nodoc:
-      attach_function :c_SetCommState, :SetCommState, [:long, :buffer_in], :int #:nodoc:
-      attach_function :c_GetCommTimeouts, :GetCommTimeouts, [:long, :buffer_out], :int #:nodoc:
-      attach_function :c_SetCommTimeouts, :SetCommTimeouts, [:long, :buffer_in], :int #:nodoc:
-      attach_function :c_ClearCommError, :ClearCommError, [:long, :int, :int], :int #:nodoc:
+      attach_function :c_GetCommState, :GetCommState, [:long, :buffer_out], :int32 #:nodoc:
+      attach_function :c_SetCommState, :SetCommState, [:long, :buffer_in], :int32 #:nodoc:
+      attach_function :c_GetCommTimeouts, :GetCommTimeouts, [:long, :buffer_out], :int32 #:nodoc:
+      attach_function :c_SetCommTimeouts, :SetCommTimeouts, [:long, :buffer_in], :int32 #:nodoc:
+      attach_function :c_ClearCommError, :ClearCommError, [:long, :int, :int], :int32 #:nodoc:
       private_class_method :c_GetCommState, :c_SetCommState, :c_GetCommTimeouts, :c_SetCommTimeouts, :c_ClearCommError #:nodoc:
       private_constant :LIBC, :ERRNO #:nodoc:
     end
 
-    private_constant :Kernel32
+    private_constant :Kernel32 #:nodoc:
   end
 end

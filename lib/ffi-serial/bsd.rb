@@ -1,4 +1,4 @@
-module FFISerial #:nodoc:
+module Serial #:nodoc:
   module Posix #:nodoc:
     # Values generated using a FreeBSD 10 instance on EC2
 

@@ -1,4 +1,4 @@
-module FFISerial #:nodoc:
+module Serial #:nodoc:
   module Posix #:nodoc:
     # Values generated using a Macbook Pro running Yosemite
 

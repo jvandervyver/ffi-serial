@@ -1,4 +1,4 @@
-module FFISerial #:nodoc:
+module Serial #:nodoc:
 
   # Load the OS specific implementation
   begin #:nodoc:
@@ -20,6 +20,8 @@ module FFISerial #:nodoc:
     end
   end
 
+  ##
+  # Serial port implementation for Posix
   module Posix #:nodoc:
     ##
     # Create a new serial port on a Posix based operating system
@@ -55,26 +57,18 @@ module FFISerial #:nodoc:
       io
     end
 
-    ##
-    # Query the current serial port baud rate
     def baud #:nodoc:
       LIBC.tcgetattr(self).baud
     end
 
-    ##
-    # Query the current serial port data bits
     def data_bits #:nodoc:
       LIBC.tcgetattr(self).data_bits
     end
 
-    ##
-    # Query the current serial port stop bits
     def stop_bits #:nodoc:
       LIBC.tcgetattr(self).stop_bits
     end
 
-    ##
-    # Query the current serial port parity configuration
     def parity #:nodoc:
       LIBC.tcgetattr(self).parity
     end
@@ -89,6 +83,8 @@ module FFISerial #:nodoc:
 
     private
 
+    ##
+    # FFI integration with C to provide access to OS specific serial port APIs
     module LIBC #:nodoc:
       require 'ffi'
 

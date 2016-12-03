@@ -1,4 +1,4 @@
-module FFISerial #:nodoc:
+module Serial #:nodoc:
   module Posix #:nodoc:
     # Values generated using a Raspberry Pi B+ running Raspbian Jesse Lite
 

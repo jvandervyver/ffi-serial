@@ -1,27 +1,46 @@
+# :main: README.md
 module Serial
-  begin
+  begin #:nodoc:
     require 'ffi'
   rescue LoadError
     raise LoadError.new 'Could not load ruby gem ffi'
   end
 
   ##
-  # Create a new Ruby IO configured as a Serial Port
+  # :attr_reader: baud
+  # Determine the current serial port baud rate by querying the underlying operating system
+
+  ##
+  # :attr_reader: data_bits
+  # Determine the current serial port data bits by querying the underlying operating system
+
+  ##
+  # :attr_reader: stop_bits
+  # Determine the current serial port stop bits by querying the underlying operating system
+
+  ##
+  # :attr_reader: parity
+  # Determine the current serial port parity by querying the underlying operating system
+
+  ##
+  # Create a new Ruby IO configured with the serial port parameters
   #
-  # - Returns: IO (See Ruby standard library for IO)
-  def self.new(config = { baud: 9600, data_bits: 8, stop_bits: 1, parity: :none })
+  # :call-seq:
+  #   new(port: '/dev/tty or COM1')
+  #   new(port: '/dev/tty or COM1', baud: 9600, data_bits: 8, stop_bits: 1, parity: :none)
+  def self.new(config)
     driver = if ('Windows_NT' == ENV['OS'])
       @@loaded_ffi_serial_windows ||= begin
         require 'ffi-serial/windows'
         true
       end
-      ::FFISerial::Windows
+      Windows
     else
       @@loaded_ffi_serial_posix ||= begin
         require 'ffi-serial/posix'
         true
       end
-      ::FFISerial::Posix
+      Posix
     end
 
     config = config.each_with_object({}) { |(k,v),r| r[k.to_s.strip.chomp.downcase.gsub(/\-|\_|\s/, '')] = v }
