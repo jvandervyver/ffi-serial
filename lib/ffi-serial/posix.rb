@@ -35,6 +35,7 @@ module Serial #:nodoc:
       end
       LIBC.cfsetispeed(termios, baud)
       LIBC.cfsetospeed(termios, baud)
+
       termios.data_bits = data_bits
       termios.stop_bits = stop_bits
       termios.parity = parity
@@ -48,18 +49,49 @@ module Serial #:nodoc:
         termios[:c_iflag] = (termios[:c_iflag] | LIBC::CONSTANTS['IXON'] | LIBC::CONSTANTS['IXOFF'] | LIBC::CONSTANTS['IXANY'])
         termios[:c_cflag] = (termios[:c_cflag] | LIBC::CONSTANTS['CLOCAL'] | LIBC::CONSTANTS['CREAD'] | LIBC::CONSTANTS['HUPCL'])
 
-        # non-blocking read
-        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 0
-        termios[:cc_c][LIBC::CONSTANTS['VTIME']] = 0
-
         LIBC.tcsetattr(io,  termios)
-
         io.extend(self)
       rescue Exception
         begin; io.close; rescue Exception; end
         raise
       end
       io
+    end
+
+    # It seems like VMIN and VTIME is broken :(
+    # So this seems to be the only way to implement read the way it should be
+    def read(length = nil, buffer = nil) #:nodoc:
+      if length.nil?
+        IO.select([self]) # Block
+
+        if buffer.nil?
+          return super
+        else
+          return super(nil, buffer)
+        end
+      end
+
+      read_count = 0
+      data_read = []
+      while(length > read_count)
+        IO.select([self]) # Block
+        data_read << (partial_read = super(length))
+        read_count += partial_read.length
+      end
+
+      data_read = data_read.join
+      return data_read if buffer.nil?
+      buffer.gsub!(buffer, data_read) # :sigh: not sure how to do this better
+      buffer
+    end
+
+    def readpartial(length, buffer = nil) #:nodoc:
+      IO.select([self]) # Block
+      if buffer.nil?
+        super(length)
+      else
+        super(length, buffer)
+      end
     end
 
     def baud #:nodoc:
