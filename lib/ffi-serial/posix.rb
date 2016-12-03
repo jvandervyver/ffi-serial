@@ -39,7 +39,11 @@ module FFISerial #:nodoc:
         io.instance_variable_set(:@__serial__dev__, dev.freeze)
 
         termios[:c_iflag] = (termios[:c_iflag] | LIBC::CONSTANTS['IXON'] | LIBC::CONSTANTS['IXOFF'] | LIBC::CONSTANTS['IXANY'])
-        termios[:c_cflag] = (termios[:c_cflag] | LIBC::CONSTANTS['CLOCAL'] | LIBC::CONSTANTS['CREAD'])
+        termios[:c_cflag] = (termios[:c_cflag] | LIBC::CONSTANTS['CLOCAL'] | LIBC::CONSTANTS['CREAD'] | LIBC::CONSTANTS['HUPCL'])
+
+        # Blocking read
+        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 1 
+        termios[:cc_c][LIBC::CONSTANTS['VTIME']] = 0
 
         LIBC.tcsetattr(io,  termios)
 

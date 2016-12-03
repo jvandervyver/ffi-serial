@@ -20,7 +20,7 @@ module FFISerial #:nodoc:
           'PARITY' => { :none => 0, :even => 4096, :odd => 12288 }.freeze,
 
           'IXON' => 512, 'IXOFF' => 1024, 'IXANY' => 2048, 'IGNPAR' => 4, 'CREAD' => 2048, 'CLOCAL' => 32768,
-          'VMIN' => 16, 'VTIME' => 17, 'TCSANOW' => 0, 'F_GETFL' => 3, 'F_SETFL' => 4 }
+          'HUPCL' => 16384, 'VMIN' => 16, 'VTIME' => 17, 'TCSANOW' => 0, 'F_GETFL' => 3, 'F_SETFL' => 4, }
       end
 
       class Termios < FFI::Struct #:nodoc:

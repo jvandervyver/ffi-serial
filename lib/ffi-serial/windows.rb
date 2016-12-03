@@ -6,16 +6,15 @@ module FFISerial #:nodoc:
         as_int = Integer(com_port)
         com_port = '\\\\.\\COM' + as_int.to_s
       rescue StandardError
-        com_port = '\\\\.\\' + com_port
+        com_port = '\\\\.\\' + com_port.to_s.strip.chomp.upcase
       end
 
-      config = Kernel32::DCB.new
-      config[:Flags] = 0
+      dcb = Kernel32::DCB.new
 
-      config.baud = baud
-      config.data_bits = data_bits
-      config.stop_bits = stop_bits
-      config.parity = parity
+      dcb.baud = baud
+      dcb.data_bits = data_bits
+      dcb.stop_bits = stop_bits
+      dcb.parity = parity
 
       io = File.open(com_port, IO::RDWR|IO::BINARY)
       begin
@@ -25,9 +24,9 @@ module FFISerial #:nodoc:
         io.sync = true
 
         # Sane defaults
-        config[:Flags] = config[:Flags] | (Kernel32::CONSTANTS['FLAGS'].fetch('fDtrControl').fetch(:enable))
-        config[:Flags] = config[:Flags] | (Kernel32::CONSTANTS['FLAGS'].fetch('fOutX'))
-        config[:Flags] = config[:Flags] | (Kernel32::CONSTANTS['FLAGS'].fetch('fInX'))
+        dcb[:Flags] = dcb[:Flags] | (Kernel32::CONSTANTS['FLAGS'].fetch('fDtrControl').fetch(:enable))
+        dcb[:XonChar] = 17
+        dcb[:XoffChar] = 19
 
         Kernel32.SetCommState(io, config)
       rescue Exception
@@ -61,6 +60,16 @@ module FFISerial #:nodoc:
       Kernel32.GetCommState(self).parity
     end
 
+    def read(*a, &b) #:nodoc:
+      Kernel32.set_io_block(self)
+      super.read(*a, &b)
+    end
+
+    def read_nonblock(*a, &b) #:nodoc:
+      Kernel32.set_io_nonblock(self)
+      super.read(*a, &b)
+    end
+
     def to_s #:nodoc:
       ['#<Serial:', @__serial__port__, '>'].join.to_s
     end
@@ -87,6 +96,7 @@ module FFISerial #:nodoc:
 
       def self.SetCommState(ruby_io, dcb)
         dcb[:DCBlength] = dcb.size
+        dcb[:Flags] = dcb[:Flags] | 1 # fBinary must be true
         if (0 == c_SetCommState(LIBC._get_osfhandle(ruby_io), dcb))
           raise ERRNO[FFI.errno].new
         end
@@ -104,6 +114,30 @@ module FFISerial #:nodoc:
         if (0 == c_SetCommTimeouts(LIBC._get_osfhandle(ruby_io), commtimeouts))
           raise ERRNO[FFI.errno].new
         end
+      end
+
+      def self.set_io_block(ruby_io)
+        SetCommTimeouts(ruby_io, (@@read_block_io ||= begin
+          timeouts = COMMTIMEOUTS.new # Setting 0 here should work technically, sticking to MAXDWORD - 1
+          timeouts[:ReadIntervalTimeout] = 4294967294
+          timeouts[:ReadTotalTimeoutMultiplier] = 4294967294
+          timeouts[:ReadTotalTimeoutConstant] = 4294967294
+          timeouts[:WriteTotalTimeoutMultiplier] = 4294967294
+          timeouts[:WriteTotalTimeoutConstant] = 4294967294
+          timeouts
+        end))
+      end
+
+      def self.set_io_nonblock(ruby_io)
+        SetCommTimeouts(ruby_io, (@@read_block_io ||= begin
+          timeouts = COMMTIMEOUTS.new
+          timeouts[:ReadIntervalTimeout] = 1 # Techinically we should set MAXDWORD here but I trust 1ms more
+          timeouts[:ReadTotalTimeoutMultiplier] = 1
+          timeouts[:ReadTotalTimeoutConstant] = 1
+          timeouts[:WriteTotalTimeoutMultiplier] = 1
+          timeouts[:WriteTotalTimeoutConstant] = 1
+          timeouts
+        end))
       end
 
       class DCB < FFI::Struct #:nodoc:
@@ -195,7 +229,7 @@ module FFISerial #:nodoc:
           'STOP_BITS' => { 1 => 0, 1.5 => 1, 2 => 2 }.freeze,
           'PARITY' => { none: 0, odd: 1, even: 2, mark: 3, space: 4 }.freeze,
           'FLAGS' => {
-            'fBinary' => 1, 'fParity' => 2, 'fOutxCtsFlow' => 4, 'fOutxDsrFlow' => 8,
+            'fParity' => 2, 'fOutxCtsFlow' => 4, 'fOutxDsrFlow' => 8,
             'fDtrControl' => { disable: 0, enable: 16, handshake: 32 }.freeze,
             'fDsrSensitivity' => 64, 'fTXContinueOnXoff' => 128, 'fOutX' => 256,
             'fInX' => 512, 'fErrorChar' => 1024, 'fNull' => 2048,
@@ -229,11 +263,12 @@ module FFISerial #:nodoc:
 
       ERRNO ||= Errno.constants.each_with_object({}) { |e, r| e = Errno.const_get(e); r[e::Errno] = e }.freeze #:nodoc:
 
-      attach_function :c_GetCommState, :GetCommState, [:long, :buffer_out], :bool #:nodoc:
-      attach_function :c_SetCommState, :SetCommState, [:long, :buffer_in], :bool #:nodoc:
-      attach_function :c_GetCommTimeouts, :GetCommTimeouts, [:long, :buffer_out], :bool #:nodoc:
-      attach_function :c_SetCommTimeouts, :SetCommTimeouts, [:long, :buffer_in], :bool #:nodoc:
-      private_class_method :c_GetCommState, :c_SetCommState, :c_GetCommTimeouts, :c_SetCommTimeouts #:nodoc:
+      attach_function :c_GetCommState, :GetCommState, [:long, :buffer_out], :int #:nodoc:
+      attach_function :c_SetCommState, :SetCommState, [:long, :buffer_in], :int #:nodoc:
+      attach_function :c_GetCommTimeouts, :GetCommTimeouts, [:long, :buffer_out], :int #:nodoc:
+      attach_function :c_SetCommTimeouts, :SetCommTimeouts, [:long, :buffer_in], :int #:nodoc:
+      attach_function :c_ClearCommError, :ClearCommError [:long, :int, :int], :int #:nodoc:
+      private_class_method :c_GetCommState, :c_SetCommState, :c_GetCommTimeouts, :c_SetCommTimeouts, :c_ClearCommError #:nodoc:
       private_constant :LIBC, :ERRNO #:nodoc:
     end
 
