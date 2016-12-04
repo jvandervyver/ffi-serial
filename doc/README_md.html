@@ -60,10 +60,11 @@
   <ul class="link-list" role="directory">
     <li><a href="#label-FFI+Serial">FFI Serial</a>
     <li><a href="#label-Why%3F">Why?</a>
-    <li><a href="#label-Why+FFI%3F">Why FFI?</a>
     <li><a href="#label-Why+IO%3F">Why IO?</a>
+    <li><a href="#label-Why+FFI%3F">Why FFI?</a>
     <li><a href="#label-Installation">Installation</a>
     <li><a href="#label-Usage">Usage</a>
+    <li><a href="#label-Notes">Notes</a>
   </ul>
 </div>
 
@@ -97,27 +98,29 @@ allow access to a serial port</p>
 
 <p>Other gems exist, why this gem?</p>
 <ol><li>
-<p>Uses FFI to negate the need for native compilation</p>
+<p>Opens <a href="Serial.html">Serial</a> port as Ruby IO object</p>
 </li><li>
-<p>Simply acts as a configurator for Ruby IO objects</p>
+<p>Uses FFI to configure serial port using native operating system functions</p>
 </li></ol>
 
-<h2 id="label-Why+FFI%3F">Why FFI?<span><a href="#label-Why+FFI%3F">&para;</a> <a href="#documentation">&uarr;</a></span></h2>
+<h3 id="label-Why+IO%3F">Why IO?<span><a href="#label-Why+IO%3F">&para;</a> <a href="#documentation">&uarr;</a></span></h3>
+<ul><li>
+<p><a href="Serial.html">Serial</a> ports are exposed as files in both
+Posix(Linux/Mac/BSD/etc) and Windows</p>
+</li><li>
+<p>Ruby IO provides a rich API and it is part of standard library</p>
+</li><li>
+<p>Ruby IO contains a large amount of very efficient and well tested code</p>
+</li><li>
+<p>Reduces gem complexity to only configuring serial port</p>
+</li></ul>
 
-<p>FFI is very widely supported at this point. By making use of FFI a lot of
-native compilation concerns go away.</p>
-
-<h2 id="label-Why+IO%3F">Why IO?<span><a href="#label-Why+IO%3F">&para;</a> <a href="#documentation">&uarr;</a></span></h2>
-
-<p><a href="Serial.html">Serial</a> ports are simply files, in both Posix and
-Windows, that have special API calls to configure the serial port settings.</p>
-
-<p>Ruby IO provides a rich API and it is part of standard library. Using IO,
-this gem benefits from everything Ruby IO provides. No modification is made
-to IO nor does this simply emulate IO.</p>
-
-<p>99% of the code in this gem is to call the native operating system
-functions to configure the IO object serial port settings</p>
+<h3 id="label-Why+FFI%3F">Why FFI?<span><a href="#label-Why+FFI%3F">&para;</a> <a href="#documentation">&uarr;</a></span></h3>
+<ul><li>
+<p>Removes native compilation concerns</p>
+</li><li>
+<p>FFI is very widely supported (portable)</p>
+</li></ul>
 
 <h2 id="label-Installation">Installation<span><a href="#label-Installation">&para;</a> <a href="#documentation">&uarr;</a></span></h2>
 
@@ -141,19 +144,33 @@ functions to configure the IO object serial port settings</p>
 <span class="ruby-identifier">port</span>.<span class="ruby-identifier">is_a?</span>(<span class="ruby-constant">File</span>) <span class="ruby-comment">#=&gt; true</span>
 
 <span class="ruby-identifier">port</span>.<span class="ruby-identifier">read_nonblock</span>(<span class="ruby-value">512</span>) <span class="ruby-comment">#=&gt; ... &lt;supported in Windows&gt;</span>
-<span class="ruby-identifier">port</span>.<span class="ruby-identifier">read</span> <span class="ruby-comment">#=&gt; ...</span>
 <span class="ruby-identifier">port</span>.<span class="ruby-identifier">readpartial</span>(<span class="ruby-value">512</span>) <span class="ruby-comment">#=&gt; ...</span>
 <span class="ruby-identifier">port</span>.<span class="ruby-identifier">write</span> <span class="ruby-string">&quot;\n&quot;</span> <span class="ruby-comment">#=&gt; 1</span>
 <span class="ruby-comment"># etc.</span>
+
+<span class="ruby-identifier">port</span>.<span class="ruby-identifier">read_timeout</span> = <span class="ruby-value">1.5</span> <span class="ruby-comment">#=&gt; 1.5 # 1500ms</span>
+<span class="ruby-identifier">port</span>.<span class="ruby-identifier">gets</span>(<span class="ruby-string">&quot;\n&quot;</span>) <span class="ruby-comment">#=&gt; ... Timeouts after 1.5 seconds</span>
 
 <span class="ruby-identifier">port</span>.<span class="ruby-identifier">close</span> <span class="ruby-comment">#=&gt; nil</span>
 
 <span class="ruby-comment"># Explicit configuration (and works on Windows)</span>
 <span class="ruby-identifier">port</span> = <span class="ruby-constant">Serial</span>.<span class="ruby-identifier">new</span> <span class="ruby-identifier">port</span><span class="ruby-operator">:</span> <span class="ruby-string">&#39;COM1&#39;</span>, <span class="ruby-identifier">data_bits</span><span class="ruby-operator">:</span> <span class="ruby-value">8</span>, <span class="ruby-identifier">stop_bits</span><span class="ruby-operator">:</span> <span class="ruby-value">1</span>, <span class="ruby-identifier">parity</span><span class="ruby-operator">:</span> :<span class="ruby-identifier">none</span> <span class="ruby-comment">#=&gt; &lt;Serial:COM1&gt;</span>
+<span class="ruby-comment"># OR</span>
+<span class="ruby-identifier">port</span> = <span class="ruby-constant">Serial</span>.<span class="ruby-identifier">new</span> <span class="ruby-identifier">port</span><span class="ruby-operator">:</span> <span class="ruby-value">1</span>, <span class="ruby-identifier">data_bits</span><span class="ruby-operator">:</span> <span class="ruby-value">8</span>, <span class="ruby-identifier">stop_bits</span><span class="ruby-operator">:</span> <span class="ruby-value">1</span>, <span class="ruby-identifier">parity</span><span class="ruby-operator">:</span> :<span class="ruby-identifier">none</span> <span class="ruby-comment">#=&gt; &lt;Serial:COM1&gt;</span>
 </pre>
 
 <p>See Ruby standard library IO for complete method list <a
 href="http://ruby-doc.org/core-1.9.3/IO.html">ruby-doc.org/core-1.9.3/IO.html</a></p>
+
+<h2 id="label-Notes">Notes<span><a href="#label-Notes">&para;</a> <a href="#documentation">&uarr;</a></span></h2>
+
+<p>IO.read will not behave exactly as described in IO.read but probably not as
+most developers expect. IO.read will read either until read_timeout is
+reached or EOF is reached.</p>
+
+<p><a href="Serial.html">Serial</a> ports are not truly files and will never
+reach EOF, therefore if read_timeout is 0, IO.read should be expected to
+block forever.</p>
 </main>
 
 

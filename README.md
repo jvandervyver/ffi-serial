@@ -4,21 +4,18 @@ FFI Serial is a simple OS independent gem to allow access to a serial port
 ## Why?
 Other gems exist, why this gem?
 
-1. Uses FFI to negate the need for native compilation
-2. Simply acts as a configurator for Ruby IO objects
+1. Opens Serial port as Ruby IO object
+2. Uses FFI to configure serial port using native operating system functions
 
-## Why FFI?
-FFI is very widely supported at this point.
-By making use of FFI a lot of native compilation concerns go away.
+### Why IO?
+- Serial ports are exposed as files in both Posix(Linux/Mac/BSD/etc) and Windows
+- Ruby IO provides a rich API and it is part of standard library
+- Ruby IO contains a large amount of very efficient and well tested code
+- Reduces gem complexity to only configuring serial port
 
-## Why IO?
-Serial ports are simply files, in both Posix and Windows, that have special API calls to configure the serial port settings.
-
-Ruby IO provides a rich API and it is part of standard library.
-Using IO, this gem benefits from everything Ruby IO provides.
-No modification is made to IO nor does this simply emulate IO.
-
-99% of the code in this gem is to call the native operating system functions to configure the IO object serial port settings
+### Why FFI?
+- Removes native compilation concerns
+- FFI is very widely supported (portable)
 
 ## Installation
     gem install ffi-serial
@@ -40,15 +37,25 @@ No modification is made to IO nor does this simply emulate IO.
     port.is_a?(File) #=> true
 
     port.read_nonblock(512) #=> ... <supported in Windows>
-    port.read #=> ...
     port.readpartial(512) #=> ...
     port.write "\n" #=> 1
     # etc.
+
+    port.read_timeout = 1.5 #=> 1.5 # 1500ms
+    port.gets("\n") #=> ... Timeouts after 1.5 seconds
 
     port.close #=> nil
 
     # Explicit configuration (and works on Windows)
     port = Serial.new port: 'COM1', data_bits: 8, stop_bits: 1, parity: :none #=> <Serial:COM1>
+    # OR
+    port = Serial.new port: 1, data_bits: 8, stop_bits: 1, parity: :none #=> <Serial:COM1>
 
 See Ruby standard library IO for complete method list
 http://ruby-doc.org/core-1.9.3/IO.html
+
+## Notes
+IO.read will not behave exactly as described in IO.read but probably not as most developers expect.
+IO.read will read either until read_timeout is reached or EOF is reached.
+
+Serial ports are not truly files and will never reach EOF, therefore if read_timeout is 0, IO.read should be expected to block forever.
