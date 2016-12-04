@@ -23,6 +23,14 @@ module Serial
   # Determine the current serial port parity by querying the underlying operating system
 
   ##
+  # :attr_accessor: read_timeout
+  # Get/Set the read_timeout
+  #
+  # - 0< nonblocking IO
+  # - 0 - blocking IO
+  # - >0 - Timeout in seconds (Float)
+
+  ##
   # Create a new Ruby IO configured with the serial port parameters
   #
   # :call-seq:

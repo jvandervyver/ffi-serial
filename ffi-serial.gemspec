@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'ffi-serial'
-  s.version = '1.0.3'
+  s.version = '1.0.4'
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = true
   s.extra_rdoc_files = ['LICENSE'] + Dir['doc/*.rdoc']

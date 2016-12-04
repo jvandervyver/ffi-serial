@@ -49,6 +49,10 @@ module Serial #:nodoc:
         termios[:c_iflag] = (termios[:c_iflag] | LIBC::CONSTANTS['IXON'] | LIBC::CONSTANTS['IXOFF'] | LIBC::CONSTANTS['IXANY'])
         termios[:c_cflag] = (termios[:c_cflag] | LIBC::CONSTANTS['CLOCAL'] | LIBC::CONSTANTS['CREAD'] | LIBC::CONSTANTS['HUPCL'])
 
+        # Blocking read
+        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 1
+        termios[:cc_c][LIBC::CONSTANTS['VTIME']] = 0
+
         LIBC.tcsetattr(io,  termios)
         io.extend(self)
       rescue Exception
@@ -58,16 +62,32 @@ module Serial #:nodoc:
       io
     end
 
-    # It seems like VMIN and VTIME is broken :(
-    # So this seems to be the only way to implement read the way it should be
-    def read(length = nil, buffer = nil) #:nodoc:
-      IO.select([self]) # Block
-      super(length, buffer)
+    def read_timeout #:nodoc:
+      termios = LIBC.tcgetattr(self)
+      return 0 unless (0 == termios[:cc_c][LIBC::CONSTANTS['VMIN']])
+      vtime = termios[:cc_c][LIBC::CONSTANTS['VTIME']]
+      return -1 if (0 == vtime)
+      (vtime.to_f / 10.0)
     end
 
-    def readpartial(length, buffer = nil) #:nodoc:
-      IO.select([self]) # Block
-      super(length, buffer)
+    def read_timeout=(val) #:nodoc:
+      val = Float(val)
+      termios = LIBC.tcgetattr(self)
+      if (0 > val)
+        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 0
+        termios[:cc_c][LIBC::CONSTANTS['VTIME']] = 0
+        val = -1
+      elsif (0 == val)
+        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 1
+        termios[:cc_c][LIBC::CONSTANTS['VTIME']] = 0
+        val = 0
+      else
+        val = (val * 10.0).to_i
+        termios[:cc_c][LIBC::CONSTANTS['VMIN']] = 0
+        termios[:cc_c][LIBC::CONSTANTS['VTIME']] = val
+        val = (val.to_f / 10.0)
+      end
+      LIBC.tcsetattr(self, termios); val
     end
 
     def baud #:nodoc:

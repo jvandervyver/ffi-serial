@@ -18,10 +18,8 @@ module Serial #:nodoc:
 
       io = File.open(com_port, IO::RDWR|IO::BINARY)
       begin
-        io.instance_variable_set(:@__serial__port__, com_port[4..-1].to_s.freeze)
-
-        io.extend(self)
         io.sync = true
+        io.instance_variable_set(:@__serial__port__, com_port[4..-1].to_s.freeze)
 
         # Sane defaults
         dcb[:Flags] = dcb[:Flags] | (Kernel32::CONSTANTS['FLAGS'].fetch('fDtrControl').fetch(:enable))
@@ -30,12 +28,52 @@ module Serial #:nodoc:
 
         Kernel32.SetCommState(io, dcb)
         Kernel32.ClearCommError(io)
-        Kernel32.set_io_block(io)
+
+        # Blocking io
+        commtimeouts = Kernel32::COMMTIMEOUTS.new
+        commtimeouts[:ReadIntervalTimeout] = Kernel32::CONSTANTS['MAXDWORD']
+        commtimeouts[:ReadTotalTimeoutMultiplier] = Kernel32::CONSTANTS['MAXDWORD']
+        commtimeouts[:ReadTotalTimeoutConstant] = Kernel32::CONSTANTS['MAXDWORD'] - 1
+        commtimeouts[:WriteTotalTimeoutMultiplier] = 0
+        commtimeouts[:WriteTotalTimeoutConstant] = Kernel32::CONSTANTS['MAXDWORD'] - 1
+        Kernel32.SetCommTimeouts(io, commtimeouts)
+
+        io.extend(self)
       rescue Exception
         begin; io.close; rescue Exception; end
         raise
       end
       io
+    end
+
+    def read_timeout
+      commtimeouts = Kernel32.GetCommTimeouts(self)
+      return -1 if (0 == commtimeouts[:ReadTotalTimeoutConstant])
+      return 0 if (Kernel32::CONSTANTS['MAXDWORD'] == commtimeouts[:ReadIntervalTimeout])
+      Float(commtimeouts[:ReadTotalTimeoutConstant])/1000.0
+    end
+
+    def read_timeout=(val)
+      val = Float(val)
+      commtimeouts = Kernel32.GetCommTimeouts(self)
+      if (0 > val)
+        commtimeouts[:ReadIntervalTimeout] = Kernel32::CONSTANTS['MAXDWORD']
+        commtimeouts[:ReadTotalTimeoutMultiplier] = 0
+        commtimeouts[:ReadTotalTimeoutConstant] = 0
+        val = -1
+      elsif (0 == val)
+        commtimeouts[:ReadIntervalTimeout] = Kernel32::CONSTANTS['MAXDWORD']
+        commtimeouts[:ReadTotalTimeoutMultiplier] = Kernel32::CONSTANTS['MAXDWORD']
+        commtimeouts[:ReadTotalTimeoutConstant] = Kernel32::CONSTANTS['MAXDWORD'] - 1
+        val = 0
+      else
+        val = (val * 1000.0).to_i
+        commtimeouts[:ReadIntervalTimeout] = val
+        commtimeouts[:ReadTotalTimeoutMultiplier] = 0
+        commtimeouts[:ReadTotalTimeoutConstant] = val
+        val = (val / 1000.0)
+      end
+      Kernel32.SetCommTimeouts(self, commtimeouts); val
     end
 
     def baud #:nodoc:
@@ -55,13 +93,7 @@ module Serial #:nodoc:
     end
 
     def read_nonblock(maxlen, outbuf = nil, options = nil) #:nodoc:
-      Kernel32.set_io_nonblock(self)
-      result = begin
-        outbuf.nil? ? read(maxlen) : read(maxlen, outbuf)
-      ensure
-        Kernel32.set_io_block(self)
-      end
-
+      result = Kernel32.nonblock_io(self) { outbuf.nil? ? self.read(maxlen) : self.read(maxlen, outbuf) }
       if result.nil? || (0 == result.length)
         if ((!options.nil?) && (false == options[:exception]))
           return :wait_readable
@@ -77,28 +109,19 @@ module Serial #:nodoc:
         return ch
       end
       self.ungetc(ch)
-      Kernel32.set_io_nonblock(self)
-      outbuf.nil? ? read(maxlen) : read(maxlen, outbuf)
-    ensure
-      Kernel32.set_io_block(self)
+      Kernel32.nonblock_io(self) { outbuf.nil? ? self.read(maxlen) : self.read(maxlen, outbuf) }
     end
 
     def readbyte #:nodoc:
-      Kernel32.set_io_nonblock(self); super
-    ensure
-      Kernel32.set_io_block(self)
+      Kernel32.nonblock_io(self) { super }
     end
 
     def getc #:nodoc:
-      Kernel32.set_io_nonblock(self); super
-    ensure
-      Kernel32.set_io_block(self)
+      Kernel32.nonblock_io(self) { super }
     end
 
     def readchar #:nodoc:
-      Kernel32.set_io_nonblock(self); super
-    ensure
-      Kernel32.set_io_block(self)
+      Kernel32.nonblock_io(self) { super }
     end
 
     def to_s #:nodoc:
@@ -134,7 +157,7 @@ module Serial #:nodoc:
 
       def self.GetCommTimeouts(ruby_io) #:nodoc:
         commtimeouts = COMMTIMEOUTS.new
-        return commtimeouts unless (0 == c_GetCommTimeouts(LIBC._get_osfhandle(fd), commtimeouts))
+        return commtimeouts unless (0 == c_GetCommTimeouts(LIBC._get_osfhandle(ruby_io), commtimeouts))
         raise ERRNO[FFI.errno].new
       end
 
@@ -148,19 +171,9 @@ module Serial #:nodoc:
         raise ERRNO[FFI.errno].new
       end
 
-      def self.set_io_block(ruby_io) #:nodoc:
-        self.SetCommTimeouts(ruby_io, (@@read_block_io ||= begin
-          timeouts = COMMTIMEOUTS.new
-          timeouts[:ReadIntervalTimeout] = CONSTANTS['MAXDWORD']
-          timeouts[:ReadTotalTimeoutMultiplier] = CONSTANTS['MAXDWORD']
-          timeouts[:ReadTotalTimeoutConstant] = CONSTANTS['MAXDWORD'] - 1
-          timeouts[:WriteTotalTimeoutMultiplier] = 0
-          timeouts[:WriteTotalTimeoutConstant] = CONSTANTS['MAXDWORD'] - 1
-          timeouts
-        end))
-      end
-
-      def self.set_io_nonblock(ruby_io) #:nodoc:
+      def self.nonblock_io(ruby_io, &blk)
+        return nil if blk.nil?
+        commtimeouts = self.GetCommTimeouts(ruby_io)
         self.SetCommTimeouts(ruby_io, (@@read_nonblock_io ||= begin
           timeouts = COMMTIMEOUTS.new
           timeouts[:ReadIntervalTimeout] = CONSTANTS['MAXDWORD']
@@ -170,6 +183,11 @@ module Serial #:nodoc:
           timeouts[:WriteTotalTimeoutConstant] = 1
           timeouts
         end))
+        begin
+          blk.yield
+        ensure
+          self.SetCommTimeouts(ruby_io, commtimeouts)
+        end
       end
 
       class DCB < FFI::Struct #:nodoc:

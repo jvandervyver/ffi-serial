@@ -142,6 +142,27 @@ operating system</p>
         </div>
       </div>
       
+      <div id="attribute-i-read_timeout" class="method-detail">
+        <div class="method-heading attribute-method-heading">
+          <span class="method-name">read_timeout</span><span
+            class="attribute-access-type">[RW]</span>
+        </div>
+
+        <div class="method-description">
+        
+        <p>Get/Set the <a
+href="Serial.html#attribute-i-read_timeout">#read_timeout</a></p>
+<ul><li>
+<p>0&lt; nonblocking IO</p>
+</li><li>
+<p>0 - blocking IO</p>
+</li><li>
+<p>&gt;0 - Timeout in seconds (Float)</p>
+</li></ul>
+        
+        </div>
+      </div>
+      
       <div id="attribute-i-stop_bits" class="method-detail">
         <div class="method-heading attribute-method-heading">
           <span class="method-name">stop_bits</span><span
@@ -195,7 +216,7 @@ operating system</p>
 
           
           <div class="method-source-code" id="new-source">
-            <pre><span class="ruby-comment"># File lib/ffi-serial.rb, line 31</span>
+            <pre><span class="ruby-comment"># File lib/ffi-serial.rb, line 39</span>
 <span class="ruby-keyword">def</span> <span class="ruby-keyword">self</span>.<span class="ruby-identifier">new</span>(<span class="ruby-identifier">config</span>)
   <span class="ruby-identifier">driver</span> = <span class="ruby-keyword">if</span> (<span class="ruby-string">&#39;Windows_NT&#39;</span> <span class="ruby-operator">==</span> <span class="ruby-constant">ENV</span>[<span class="ruby-string">&#39;OS&#39;</span>])
     <span class="ruby-identifier">@@loaded_ffi_serial_windows</span> <span class="ruby-operator">||=</span> <span class="ruby-keyword">begin</span>
